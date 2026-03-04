@@ -1,0 +1,5 @@
+__pycache__/
+output/
+comparison_output/
+.sisyphus/
+*.png
