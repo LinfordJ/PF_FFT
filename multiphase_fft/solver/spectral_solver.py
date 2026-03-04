@@ -1,7 +1,7 @@
 import taichi as ti
 import numpy as np
 from multiphase_fft.config import SimulationConfig
-from multiphase_fft.math_utils.taichi_fft import fft_2d_batched, ifft_2d_batched, fft_3d_batched, ifft_3d_batched
+from multiphase_fft.math_utils.taichi_fft import fft_1d_batched, ifft_1d_batched, fft_2d_batched, ifft_2d_batched, fft_3d_batched, ifft_3d_batched
 from multiphase_fft.physics.interpolation import PolynomialInterpolation
 from multiphase_fft.physics.energy import MultiphaseEnergy
 
@@ -38,7 +38,10 @@ class SpectralSolver:
 
     def setup_k2(self):
         k2_np = np.zeros(self.N, dtype=np.float32)
-        if self.dim == 2:
+        if self.dim == 1:
+            kx = np.fft.fftfreq(self.N[0], d=self.dx[0]) * 2 * np.pi
+            k2_np = (kx**2).astype(np.float32)
+        elif self.dim == 2:
             kx = np.fft.fftfreq(self.N[0], d=self.dx[0]) * 2 * np.pi
             ky = np.fft.fftfreq(self.N[1], d=self.dx[1]) * 2 * np.pi
             KX, KY = np.meshgrid(kx, ky, indexing='ij')
@@ -116,10 +119,13 @@ class SpectralSolver:
     def step(self):
         self.compute_df_and_load()
         
-        if self.dim == 2:
+        if self.dim == 1:
+            fft_1d_batched(self.phi_work_k, self.fft_buffer)
+            fft_1d_batched(self.df_work_k, self.fft_buffer)
+        elif self.dim == 2:
             fft_2d_batched(self.phi_work_k, self.fft_buffer)
             fft_2d_batched(self.df_work_k, self.fft_buffer)
-        else:
+        elif self.dim == 3:
             fft_3d_batched(self.phi_work_k, self.fft_buffer)
             fft_3d_batched(self.df_work_k, self.fft_buffer)
             
@@ -128,9 +134,11 @@ class SpectralSolver:
         else:
             self.update_work_k_cahn_hilliard(self.cfg.dt, self.cfg.kappa, self.cfg.mobility)
             
-        if self.dim == 2:
+        if self.dim == 1:
+            ifft_1d_batched(self.phi_work_k, self.fft_buffer)
+        elif self.dim == 2:
             ifft_2d_batched(self.phi_work_k, self.fft_buffer)
-        else:
+        elif self.dim == 3:
             ifft_3d_batched(self.phi_work_k, self.fft_buffer)
             
         self.save_work_k_and_project()

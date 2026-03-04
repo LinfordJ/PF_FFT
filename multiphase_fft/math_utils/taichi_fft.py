@@ -482,3 +482,48 @@ def ifft_3d_batched(data, buffer):
     transpose_3d_xz_batched(buffer, data)
     
     scale_data_batched(data, 1.0 / (nx * ny * nz))
+
+# --- BATCHED 1D FFT ---
+@ti.kernel
+def bit_reversal_permutation_1d_batched(data: ti.template(), n_batches: ti.i32, n: ti.i32, log2_n: ti.i32):
+    for b, i in ti.ndrange(n_batches, n):
+        rev = reverse_bits(i, log2_n)
+        if i < rev:
+            temp = data[b, i]
+            data[b, i] = data[b, rev]
+            data[b, rev] = temp
+
+@ti.kernel
+def compute_fft_1d_step_batched(data: ti.template(), n_batches: ti.i32, n: ti.i32, step: ti.i32, half_step: ti.i32, sign: ti.f32):
+    for b, k in ti.ndrange(n_batches, n // 2):
+        group = k // half_step
+        idx = k % half_step
+        i = group * step + idx
+        j = i + half_step
+        
+        theta = sign * 2.0 * math.pi * ti.cast(idx, ti.f32) / ti.cast(step, ti.f32)
+        w = complex_exp(theta)
+        
+        u = data[b, i]
+        t = complex_mul(w, data[b, j])
+        
+        data[b, i] = u + t
+        data[b, j] = u - t
+
+def fft_1d_batched_core(data, n_batches, n, sign):
+    log2_n = int(math.log2(n))
+    bit_reversal_permutation_1d_batched(data, n_batches, n, log2_n)
+    step = 2
+    while step <= n:
+        half_step = step // 2
+        compute_fft_1d_step_batched(data, n_batches, n, step, half_step, sign)
+        step *= 2
+
+def fft_1d_batched(data, buffer=None):
+    n_batches, n = data.shape
+    fft_1d_batched_core(data, n_batches, n, -1.0)
+
+def ifft_1d_batched(data, buffer=None):
+    n_batches, n = data.shape
+    fft_1d_batched_core(data, n_batches, n, 1.0)
+    scale_data_batched(data, 1.0 / n)

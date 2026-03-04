@@ -21,7 +21,7 @@ class SimulationConfig:
     equation_type: str = "Allen-Cahn"
     
     def __post_init__(self):
-        assert self.dim in [2, 3], "Dimension must be 2 or 3"
+        assert self.dim in [1, 2, 3], "Dimension must be 1, 2, or 3"
         assert len(self.N) == self.dim, "Grid resolution must match dimension"
         assert len(self.L) == self.dim, "Domain size must match dimension"
         assert self.N_phases >= 2, "Must have at least 2 phases"
