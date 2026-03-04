@@ -108,6 +108,10 @@ def main():
             solver.step()
 
     print("3D Simulation completed successfully.")
+    
+    # Save final 3D data for pyvista rendering
+    np.save(os.path.join(output_dir, "phi_3d_final.npy"), solver.phi.to_numpy())
+    print("Saved final 3D numpy array to output_3d/phi_3d_final.npy")
 
 if __name__ == "__main__":
     main()
