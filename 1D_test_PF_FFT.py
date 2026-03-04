@@ -21,19 +21,17 @@ def init_1d_phases(N, N_phases, mode="tanh", eta=2.0):
                 phi[2, i] = 1.0
     elif mode == "tanh":
         x = np.arange(N)
-        x1 = N / 3.0
-        x2 = 2.0 * N / 3.0
         
-        # Phase 0 occupies the left part (x < x1)
-        phi[0, :] = 0.5 * (1.0 - np.tanh((x - x1) / (np.sqrt(2) * eta)))
+        def tanh_box(x_arr, center, width, interface_eta):
+            left = center - width / 2.0
+            right = center + width / 2.0
+            return 0.5 * (np.tanh((x_arr - left) / (np.sqrt(2) * interface_eta)) - 
+                          np.tanh((x_arr - right) / (np.sqrt(2) * interface_eta)))
         
-        # Phase 2 occupies the right part (x > x2)
-        phi[2, :] = 0.5 * (1.0 + np.tanh((x - x2) / (np.sqrt(2) * eta)))
-        
-        # Phase 1 is in the middle
+        phi[0, :] = tanh_box(x, 3.0 * N / 8.0, N / 4.0, eta)
+        phi[2, :] = tanh_box(x, 5.0 * N / 8.0, N / 4.0, eta)
         phi[1, :] = 1.0 - phi[0, :] - phi[2, :]
         
-        # Ensure values stay exactly in [0, 1] bounds and sum to 1
         phi = np.clip(phi, 0.0, 1.0)
         sum_phi = np.sum(phi, axis=0)
         phi /= (sum_phi + 1e-10)

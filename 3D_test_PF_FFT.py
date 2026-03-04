@@ -22,27 +22,26 @@ def init_uniform_noise_phi_3d(N, N_phases, fluctuation):
 def render_pyvista_step(phi_np, step, output_dir):
     N_phases, Nx, Ny, Nz = phi_np.shape
 
-    colors = np.array([
-        [0.1, 0.1, 0.1],  
-        [0.8, 0.2, 0.2],  
-        [0.2, 0.8, 0.2],  
-        [0.2, 0.2, 0.8],  
-        [0.8, 0.8, 0.2],
-        [0.2, 0.8, 0.8],
-        [0.8, 0.2, 0.8],
-        [1.0, 0.5, 0.0],
-        [0.5, 0.0, 1.0],
-        [0.0, 0.5, 1.0],
-    ])
+    color_palette = [
+        [1.0, 0.0, 0.0], 
+        [0.0, 1.0, 0.0], 
+        [0.0, 0.0, 1.0], 
+        [1.0, 1.0, 0.0], 
+        [0.0, 1.0, 1.0], 
+        [1.0, 0.0, 1.0]  
+    ]
+    colors = np.array([color_palette[i % len(color_palette)] for i in range(N_phases)])
 
     rgb_vol = np.zeros((Nx, Ny, Nz, 3), dtype=np.float32)
     for p in range(N_phases):
         for c in range(3):
-            rgb_vol[:, :, :, c] += phi_np[p, :, :, :] * colors[p % len(colors)][c]
+            rgb_vol[:, :, :, c] += phi_np[p, :, :, :] * colors[p][c]
     rgb_vol = np.clip(rgb_vol, 0, 1)
 
     grains_vol = np.argmax(phi_np, axis=0).astype(np.float32)
+    
     bounds_vol = np.max(phi_np, axis=0) - np.min(phi_np, axis=0)
+    bounds_rgb = np.stack([bounds_vol, bounds_vol, bounds_vol], axis=-1)
 
     grid = pv.ImageData()
     grid.dimensions = (Nx, Ny, Nz)
@@ -50,7 +49,7 @@ def render_pyvista_step(phi_np, step, output_dir):
 
     grid.point_data["RGB"] = (rgb_vol.reshape(-1, 3, order='F') * 255).astype(np.uint8)
     grid.point_data["Grains"] = grains_vol.flatten(order='F')
-    grid.point_data["Boundaries"] = bounds_vol.flatten(order='F')
+    grid.point_data["BoundariesRGB"] = (bounds_rgb.reshape(-1, 3, order='F') * 255).astype(np.uint8)
 
     slices = grid.slice_orthogonal(x=Nx//2, y=Ny//2, z=Nz//2)
     outline = grid.outline()
@@ -68,13 +67,13 @@ def render_pyvista_step(phi_np, step, output_dir):
 
     p.subplot(0, 1)
     p.add_mesh(outline, color="black")
-    p.add_mesh(slices, scalars="Grains", cmap="jet", show_scalar_bar=False)
+    p.add_mesh(slices, scalars="Grains", cmap="jet", clim=[0, N_phases-1], show_scalar_bar=False)
     p.add_text(f"2. Grains (Step {step})", font_size=14, position='upper_edge')
     p.camera_position = 'iso'
 
     p.subplot(0, 2)
     p.add_mesh(outline, color="black")
-    p.add_mesh(slices, scalars="Boundaries", cmap="bone_r", show_scalar_bar=False)
+    p.add_mesh(slices, scalars="BoundariesRGB", rgb=True, show_scalar_bar=False)
     p.add_text(f"3. Boundaries (Step {step})", font_size=14, position='upper_edge')
     p.camera_position = 'iso'
 
@@ -112,8 +111,8 @@ def main():
     output_dir = "output_3d"
     os.makedirs(output_dir, exist_ok=True)
 
-    n_steps = 200
-    save_freq = 50
+    n_steps = 1000
+    save_freq = 200
 
     print("Starting 3D MPF FFT Simulation...")
 
