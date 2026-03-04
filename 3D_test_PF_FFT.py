@@ -3,13 +3,15 @@ import numpy as np
 import os
 import pyvista as pv
 
-ti.init(arch=ti.cpu, default_fp=ti.f32)
+ti.init(arch=ti.gpu,fast_math=True)
+# ti.init(arch=ti.cpu, default_fp=ti.f32)
 
 from multiphase_fft.config import SimulationConfig
 from multiphase_fft.solver.spectral_solver import SpectralSolver
 
 def init_uniform_noise_phi_3d(N, N_phases, fluctuation):
     phi_np = np.ones((N_phases, N[0], N[1], N[2]), dtype=np.float32) / N_phases
+    np.random.seed(42)
     noise = np.random.uniform(-fluctuation, fluctuation, size=(N_phases, N[0], N[1], N[2])).astype(np.float32)
     phi_np += noise
     
@@ -61,19 +63,19 @@ def render_pyvista_step(phi_np, step, output_dir):
 
     p.subplot(0, 0)
     p.add_mesh(outline, color="black")
-    p.add_mesh(slices, scalars="RGB", rgb=True, show_scalar_bar=False)
+    p.add_mesh(slices.copy(), scalars="RGB", rgb=True, show_scalar_bar=False)
     p.add_text(f"1. RGB (Step {step})", font_size=14, position='upper_edge')
     p.camera_position = 'iso'
 
     p.subplot(0, 1)
     p.add_mesh(outline, color="black")
-    p.add_mesh(slices, scalars="Grains", cmap="jet", clim=[0, N_phases-1], show_scalar_bar=False)
+    p.add_mesh(slices.copy(), scalars="Grains", cmap="jet", clim=[0, N_phases-1], show_scalar_bar=False)
     p.add_text(f"2. Grains (Step {step})", font_size=14, position='upper_edge')
     p.camera_position = 'iso'
 
     p.subplot(0, 2)
     p.add_mesh(outline, color="black")
-    p.add_mesh(slices, scalars="BoundariesRGB", rgb=True, show_scalar_bar=False)
+    p.add_mesh(slices.copy(), scalars="BoundariesRGB", rgb=True, show_scalar_bar=False)
     p.add_text(f"3. Boundaries (Step {step})", font_size=14, position='upper_edge')
     p.camera_position = 'iso'
 
@@ -91,7 +93,7 @@ def main():
     cfg = SimulationConfig(
         dim=3,
         N=N,
-        L=(64.0, 64.0, 64.0),
+        L=(6.4, 6.4, 6.4),
         N_phases=N_phases,
         kappa=4.0,
         W=64.0,

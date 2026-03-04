@@ -3,7 +3,8 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
-ti.init(arch=ti.cpu, default_fp=ti.f32)
+ti.init(arch=ti.gpu,fast_math=True)
+# ti.init(arch=ti.cpu, default_fp=ti.f32)
 
 from multiphase_fft.config import SimulationConfig
 from multiphase_fft.solver.spectral_solver import SpectralSolver
@@ -35,6 +36,15 @@ def init_1d_phases(N, N_phases, mode="tanh", eta=2.0):
         phi = np.clip(phi, 0.0, 1.0)
         sum_phi = np.sum(phi, axis=0)
         phi /= (sum_phi + 1e-10)
+    elif mode == "uniform_noise":
+        phi = np.ones((N_phases, N), dtype=np.float32) / N_phases
+        np.random.seed(42)
+        fluctuation = 0.01
+        noise = np.random.uniform(-fluctuation, fluctuation, size=(N_phases, N)).astype(np.float32)
+        phi += noise
+        
+        sum_phi = np.sum(phi, axis=0)
+        phi /= (sum_phi + 1e-10)
         
     return phi
 
@@ -45,21 +55,21 @@ def main():
     cfg = SimulationConfig(
         dim=1,
         N=N,
-        L=(256.0,),
+        L=(25.6,),
         N_phases=N_phases,
-        kappa=2.0,
-        W=1.0,
-        U=1.0,
+        kappa=4.0,
+        W=64.0,
+        U=192.0,
         bulk_energies=[0.0, 0.0, 0.0],
-        mobility=1.0,
-        dt=0.1,
+        mobility=0.02,
+        dt=0.01,
         equation_type="Allen-Cahn"
     )
 
     solver = SpectralSolver(cfg)
 
     # mode can be "step" or "tanh"
-    phi_init = init_1d_phases(N[0], N_phases, mode="tanh", eta=3.0)
+    phi_init = init_1d_phases(N[0], N_phases, mode="uniform_noise", eta=3.0)
     solver.phi.from_numpy(phi_init)
 
     output_dir = "output_1d"

@@ -109,6 +109,7 @@ class SpectralSolver:
             sum_phi = 0.0
             for i in range(self.N_phases):
                 val = self.phi_work_k[i, I][0]
+                val = ti.max(0.0, ti.min(1.0, val))  # clamp to [0, 1]
                 self.phi[i, I] = val
                 sum_phi += val
             if sum_phi != 0.0:
