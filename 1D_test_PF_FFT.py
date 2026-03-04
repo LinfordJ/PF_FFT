@@ -8,15 +8,36 @@ ti.init(arch=ti.cpu, default_fp=ti.f32)
 from multiphase_fft.config import SimulationConfig
 from multiphase_fft.solver.spectral_solver import SpectralSolver
 
-def init_1d_phases(N, N_phases):
+def init_1d_phases(N, N_phases, mode="tanh", eta=2.0):
     phi = np.zeros((N_phases, N), dtype=np.float32)
-    for i in range(N):
-        if i < N // 3:
-            phi[0, i] = 1.0
-        elif i < 2 * N // 3:
-            phi[1, i] = 1.0
-        else:
-            phi[2, i] = 1.0
+    
+    if mode == "step":
+        for i in range(N):
+            if i < N // 3:
+                phi[0, i] = 1.0
+            elif i < 2 * N // 3:
+                phi[1, i] = 1.0
+            else:
+                phi[2, i] = 1.0
+    elif mode == "tanh":
+        x = np.arange(N)
+        x1 = N / 3.0
+        x2 = 2.0 * N / 3.0
+        
+        # Phase 0 occupies the left part (x < x1)
+        phi[0, :] = 0.5 * (1.0 - np.tanh((x - x1) / (np.sqrt(2) * eta)))
+        
+        # Phase 2 occupies the right part (x > x2)
+        phi[2, :] = 0.5 * (1.0 + np.tanh((x - x2) / (np.sqrt(2) * eta)))
+        
+        # Phase 1 is in the middle
+        phi[1, :] = 1.0 - phi[0, :] - phi[2, :]
+        
+        # Ensure values stay exactly in [0, 1] bounds and sum to 1
+        phi = np.clip(phi, 0.0, 1.0)
+        sum_phi = np.sum(phi, axis=0)
+        phi /= (sum_phi + 1e-10)
+        
     return phi
 
 def main():
@@ -39,7 +60,8 @@ def main():
 
     solver = SpectralSolver(cfg)
 
-    phi_init = init_1d_phases(N[0], N_phases)
+    # mode can be "step" or "tanh"
+    phi_init = init_1d_phases(N[0], N_phases, mode="tanh", eta=3.0)
     solver.phi.from_numpy(phi_init)
 
     output_dir = "output_1d"
