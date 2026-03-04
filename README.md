@@ -7,15 +7,13 @@ This document provides a detailed explanation of the physical principles, mathem
 ## 1. Physical Principles and Mathematical Model
 
 This program primarily implements the **Steinbach Multi-Phase Field Model**. In a multi-grain or multi-phase evolving system, multiple phase variables $\phi_1, \phi_2, \dots, \phi_N$ exist simultaneously. We must ensure the volume conservation constraint is satisfied at any spatial point:
-$$
-\sum_{i=1}^{N} \phi_i(r, t) = 1 
-$$
+
+$$ \sum_{i=1}^{N} \phi_i(r, t) = 1 $$
 
 ### 1.1 Free Energy Functional
 The total free energy $F$ of the system consists of gradient energy, chemical free energy (hindering dual-phase coexistence), a third-phase penalty term, and bulk free energy:
-$$ 
-F = \int_V \left[ f_{grad} + f_{chem} + f_{pen} + f_{bulk} \right] dV 
-$$
+
+$$ F = \int_V \left[ f_{grad} + f_{chem} + f_{pen} + f_{bulk} \right] dV $$
 
 The specific forms defined in the code are:
 1. **Gradient Energy**: $\frac{\kappa}{2} \sum_{i=1}^N |\nabla \phi_i|^2$, reflecting the surface tension of the phase interfaces.
@@ -25,18 +23,16 @@ The specific forms defined in the code are:
 
 ### 1.2 Kinetic Evolution Equation (Steinbach Equation)
 To automatically satisfy the $\sum \phi_i = 1$ constraint during evolution, Steinbach proposed the following kinetic equation:
-$$ 
-\frac{\partial \phi_i}{\partial t} = \frac{M}{N_{phases}} \sum_{j \neq i} \left( \frac{\delta F}{\delta \phi_j} - \frac{\delta F}{\delta \phi_i} \right) 
-$$
+
+$$ \frac{\partial \phi_i}{\partial t} = \frac{M}{N_{phases}} \sum_{j \neq i} \left( \frac{\delta F}{\delta \phi_j} - \frac{\delta F}{\delta \phi_i} \right) $$
 
 This is equivalent to calculating the absolute thermodynamic driving force $f_i = -\frac{\delta F}{\delta \phi_i}$ for each phase, and then subtracting the average driving force of all phases to obtain the **Effective Force**:
-$$ 
-f_{eff, i} = f_i - \frac{1}{N_{phases}} \sum_{j=1}^{N_{phases}} f_j 
-$$
+
+$$ f_{eff, i} = f_i - \frac{1}{N_{phases}} \sum_{j=1}^{N_{phases}} f_j $$
+
 Thus, the equation simplifies to:
-$$ 
-\frac{\partial \phi_i}{\partial t} = M \cdot f_{eff, i} 
-$$
+
+$$ \frac{\partial \phi_i}{\partial t} = M \cdot f_{eff, i} $$
 
 ---
 
@@ -48,13 +44,16 @@ The **Spectral Method** solves the gradient term in the frequency domain using t
 ### 2.1 Frequency Domain Transformation
 Let the thermodynamic driving force be $f_i = \kappa \nabla^2 \phi_i + g_i(\phi)$, where $g_i$ contains the nonlinear chemical energy, penalty energy, and bulk energy.
 Applying the Fourier transform $\mathcal{F}$ to both sides of the equation, and using the property $\mathcal{F}(\nabla^2 \phi) = -k^2 \hat{\phi}$ (where $k$ is the wave vector), the evolution equation in the frequency domain becomes:
+
 $$ \frac{\partial \hat{\phi}_i}{\partial t} = M \left( -\kappa k^2 \hat{\phi}_i + \hat{g}_{eff, i} \right) $$
 
 ### 2.2 Semi-Implicit Time Discretization
 To ensure stability, we evaluate the **linear gradient term** at the next time step $n+1$ (implicitly), while evaluating the **nonlinear term** at the current time step $n$ (explicitly):
+
 $$ \frac{\hat{\phi}_i^{n+1} - \hat{\phi}_i^n}{\Delta t} = M \left( -\kappa k^2 \hat{\phi}_i^{n+1} + \hat{g}_{eff, i}^n \right) $$
 
 Rearranging yields the explicit update formula for $\hat{\phi}^{n+1}$:
+
 $$ \hat{\phi}_i^{n+1} = \frac{\hat{\phi}_i^n + \Delta t \cdot M \cdot \hat{g}_{eff, i}^n}{1 + \Delta t \cdot M \cdot \kappa \cdot k^2} $$
 
 **This is the core of the spectral method's stability**: No matter how large $\Delta t$ or $\kappa$ is, the denominator $1 + \Delta t M \kappa k^2$ is always greater than 1, strongly suppressing high-frequency oscillations. This allows us to use time steps orders of magnitude larger than those in the FD model.
